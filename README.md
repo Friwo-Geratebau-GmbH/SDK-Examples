@@ -1,4 +1,4 @@
-# FRIWO-SDK
+# FRIWO SDK
 
 ### SDK overview
 
