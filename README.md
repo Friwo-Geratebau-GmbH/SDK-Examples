@@ -1,8 +1,11 @@
-# FRIWO SDK
+# FRIWO SDK-Examples
 
-### SDK overview
+### General Description 
+This repository contains template modules for specific applications which can be used with the FRIWO SDK. The module's related c-files can be directly copied into your own SDK project workspace in order to build and integrate it into the basic software framework. 
 
-FRIWO SDK is an all-in-one tool that bundles developer software and provides an end-to-end development environment setup solution for FRIWO E-Mobility Products. It enables you to focus on your specific application and provides all the bullet-proof basic software
+### SDK Overview
+
+FRIWO SDK is an all-in-one tool that bundles developer software and provides an end-to-end development environment setup solution for FRIWO E-Mobility Products. It enables you to focus on your specific application and provides all the bullet-proof basic software.
 
 ### Target Application
 - eScooter / eBikes
@@ -21,7 +24,7 @@ FRIWO SDK is an all-in-one tool that bundles developer software and provides an 
 - Advanced licensing administration for your e-Scooter fleet, powered by FRIWO motor controllers
 
 
-### Important links
+### Important Links
 
 - [SDK product page] (https://www.friwo.com/de/produkte/antriebssysteme/)
 - [SDK datasheet] (https://www.friwo.com/de/produkte/antriebssysteme/)
