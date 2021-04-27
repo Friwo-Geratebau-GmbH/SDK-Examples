@@ -18,7 +18,7 @@ FRIWO SDK is an all-in-one tool that bundles developer software and provides an 
 - Write your custom code in ANSI C, as part of the FRIWO Firmware
 - With little modifications, you can create new functionalities. (E.g. Hill Assistant for eScooters)
 - We are working on continuous expansion of the customizable modules
-- Monitor and modify your own variables inside the FRIWO Enable Tool (#todo Tracking Link to ET)
+- Monitor and modify your own variables inside the [FRIWO Enable Tool](https://friwo.link/gh/enable-tool)
 - Advanced component protection against wrong configuration
 - Ease of Distribution of new software for your e-Scooter fleet, together with our Enable Tool
 - Advanced licensing administration for your e-Scooter fleet, powered by FRIWO motor controllers
@@ -26,8 +26,8 @@ FRIWO SDK is an all-in-one tool that bundles developer software and provides an 
 
 ### Important Links
 
-- [SDK product page] (https://www.friwo.com/de/produkte/antriebssysteme/)
-- [SDK datasheet] (https://www.friwo.com/de/produkte/antriebssysteme/)
+- [SDK product page](https://www.friwo.com/de/produkte/antriebssysteme/)
+- [SDK datasheet](https://www.friwo.com/de/produkte/antriebssysteme/)
 
 ---
 
