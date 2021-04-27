@@ -26,8 +26,8 @@ FRIWO SDK is an all-in-one tool that bundles developer software and provides an 
 
 ### Important Links
 
-- [SDK product page](https://www.friwo.com/de/produkte/antriebssysteme/)
-- [SDK datasheet](https://www.friwo.com/de/produkte/antriebssysteme/)
+- [SDK product page](https://www.friwo-shop.de/en/drive-systems/software/119/software-development-kit?c=7508&number=1858850)
+- [SDK datasheet](https://www.friwo.com/wp-content/uploads/FRIWO_Flyer_SDK.pdf)
 
 ---
 
