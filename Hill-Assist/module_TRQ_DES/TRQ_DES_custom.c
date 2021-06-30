@@ -1,386 +1,287 @@
-/**************************************************************************************************\
- *** 
- *** 				FRIWO SDK: Source file for custom module TRQ_DES
- *** 
-\**************************************************************************************************/
+/**
+*******************************************************************************
+* @file TRQ_DES_custom.c
+* @brief FRIWO SDK Source file for custom module TRQDES
+* @author Sven Hoechemer
+* @date 14.06.2021 - 10:08:33
+* <hr>
+*******************************************************************************
+* COPYRIGHT &copy; 2021 FRIWO GmbH
+*******************************************************************************
+*/
 
-/*----------------------------------------------------------------------------*\
-  Module inports:
-  	APP_Brake_Signal_Channel		| Float32 | Limits: 0...7	 		| Description: In APP-module selected input signal which will be used as the brake input; StateList: 0=not selected / off;1=AIN1;2=AIN2;3=PWM@DIN2;4=CAN-Bus;5=USB;6=DIN1;7=DIN2
-	APP_Reverse_Gear_Signal_Channel	| Float32 | Limits: 0...4	 	   	| Description: In APP-module selected input signal which will be used as the reverse gear select input; StateList: 0=not selected / off;1 = DIN1;2 = DIN2;3 = CAN-bus;4 = USB
-	APP_Throttle_Signal_Channel		| Float32 | Limits: 0...5	 		| Description: In APP-module selected input signal which will be used as the throttle input; StateList: 0=not selected / off;1 = AIN1; 2 = AIN2;3 = PWM@DIN2;4 = CAN-Bus;5 = USB
-	AIN1_Throttle					| Float32 | Limits: 0...100 		| Description: Output signal [%]; 0 = no throttle; 100 = throttle fully engaged; -100 = max. braking torque (or reverse)
-	AIN2_Throttle					| Float32 | Limits: 0...100			| Description: Output signal [%]; 0 = no throttle; 100 = throttle fully engaged
-	CAN_EXT_Reverse_Gear			| Float32 | Limits: 0...100    		| Description: Reverse gear selected via CAN
-	CAN_EXT_Torque_Request			| Float32 | Limits: 0...100   		| Description: Relative torque request via CAN [%];
-	DIN_DIN1_Signal					| Float32 | Limits: 0...1	 	   	| Description: Digital signal value of DIN1 [%]
-	DIN_DIN2_Signal					| Float32 | Limits: 0...1	 	   	| Description: Digital signal value of DIN2 [%]
-	PWMI_Throttle 					| Float32 | Limits: 0...100 	   	| Description: Output signal [%]; 0 = no throttle; 100 = throttle fully engaged
-	MO_Rotor_Speed					| Float32 | Limits: -2400...2400	| Description: Mechanical motor rotor-speed [1/s]
-	APP_Disp_Ride_Mode				| Float32 | Limits: 0...3			| Description: Selected ride-mode [-]
-	SM_Trq_Control_status			| Float32 | Limits: 0...1			| Description: Status of torque-control; StateList: 0=Torque-control deactivated; 1=Torque-control active
+#ifndef TRQ_DES_CUSTOM_C_
+#define TRQ_DES_CUSTOM_C_
 
-\*----------------------------------------------------------------------------*/
+/**
+* @addtogroup TRQDES_custom
+* @{
+*/
 
-/*----------------------------------------------------------------------------*\
-  Module outports:
-	TRQ_DES_Driver_Throttle			| Float32 | Limits: 0...100 		| Description: Throttle signal used for desired driver torque calculation [%]
-	TRQ_DES_Driver_Brake			| Float32 | Limits: 0...100 		| Description: Brake signal used for desired driver torque calculation [%]
-	TRQ_DES_Driver_Reverse_Gear		| Float32 | Limits: 0...1 			| Description: Selected driving direction;StateList;0 = Forward gear selected;1 = Reverse gear selected [-]
-	TRQ_DES_Trq_Req_Rel				| Float32 | Limits: -100...100		| Description: Desired driver torque, combined from all input-signal sources [%]	
-\*----------------------------------------------------------------------------*/
-
-#ifndef TRQ_DES_CUSTOM_C
-#define TRQ_DES_CUSTOM_C
-
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/* INCLUDES */
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "TRQ_DES_custom.h"
+#include "trqdesApi.h"
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-/* Define variables to be displayed in FRIWO EnableTool 					 */
+/* PRIVATE DEFINES */
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-/* Section EMERGE_DISP_RAM:  Application data which will be read from Flash */
-/* All data types which can be chosen:  Int8, Int16, Int32, UInt8, UInt16, UInt32, Bool and Float32 */
 
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/* PRIVATE TYPEDEF */
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+/** 
+ * @brief Define different states for hill-assist state machine as enumeration.
+ */
+typedef enum 
+{ 
+	STATE_INITIAL, /**< @brief Initial state after start-up; decides whether to accelerate in assisted or normal mode depending on throttle/brake input and rotor speed. */
+	STATE_THROTTLE_PRIO, /**< @brief Priorizes throttle over break input for a certain time (counter) in order to generate enough torque for acceleration on hill. */
+	STATE_NORMAL_ACCELERATION /**< @brief Add up both throttle and brake inputs to calculate desired torque. State is left, if both inputs equal zero and rotor speed is below threshold. */
+}hillAssistState_TypeDef;
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/* PRIVATE CONSTANTS */
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/* PUBLIC VARIABLES */
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+/**	
+ * Define variables to be displayed in FRIWO EnableTool Application.
+ * Section EMERGE_DISP_RAM: Application data which will be read from Flash.
+ * All data types which can be chosen:  Int8, Int16, Int32, UInt8, UInt16, UInt32, Bool and Float32.
+ */
 __attribute__((section("EMERGE_DISP_RAM")))
-volatile Float32 TRQ_DES_Throttle_Input
-/* Description: Throttle input value after selection of input channel [%]; */;
+MEDKit_Modul_Interfaces Float32 TRQ_DES_Throttle_Input; /*
+	Description: Throttle signal value after selection of input channel [%] */
 	
 __attribute__((section("EMERGE_DISP_RAM")))
-volatile Float32 TRQ_DES_Brake_Input
-/* Description: Brake input value after selection of input channel [%]; */;
+MEDKit_Modul_Interfaces Float32 TRQ_DES_Brake_Input; /*
+	Description: Brake signal value after selection of input channel [%] */
    
 __attribute__((section("EMERGE_DISP_RAM")))
-volatile Float32 TRQ_DES_Reverse_Gear
-/* Description: Shows if reverse gear is selected;  0 = forward gear selected; 1 = reverse gear selected */;
+MEDKit_Modul_Interfaces Float32 TRQ_DES_ReverseGear_Input; /*
+	Description: Shows if reverse gear is selected after selection of input channel;  0 = forward gear selected; 1 = reverse gear selected */
+	
+__attribute__((section("EMERGE_DISP_RAM")))
+MEDKit_Modul_Interfaces Float32 TRQ_DES_TorqueRequest; /*
+	Description: Shows the desired torque request returned to trqdesApi [%]; */
    
 __attribute__((section("EMERGE_DISP_RAM")))
-volatile Float32 TRQ_DES_Flag_Upper_Lim
-/* Description: Shows if desired torque has reached the upper bound of allowed operational range */;
+MEDKit_Modul_Interfaces UInt8 TRQ_DES_TorqueRequest_UpperLim; /*
+	Description: Shows if desired torque has reached the upper bound of allowed operational range */
    
 __attribute__((section("EMERGE_DISP_RAM")))
-volatile Float32 TRQ_DES_Flag_Lower_Lim
-/* Description: Shows if desired torque has reached the lower bound of allowed operational range; */;
+MEDKit_Modul_Interfaces UInt8 TRQ_DES_TorqueRequest_LowerLim; /*
+	Description: Shows if desired torque has reached the lower bound of allowed operational range */
 
 __attribute__((section("EMERGE_DISP_RAM")))
-volatile UInt32 TRQ_DES_Hill_Assist_Disp_State
-/* Description: Shows the actual state of hill-assist algorithm; 0 = Hill-Assist not active; 1 = Entry state; 
-2 = Prepare for Throttle-Priorization; 3 = Accelerate with Brake on; 4 = Accelerate with Brake released */;
+MEDKit_Modul_Interfaces UInt8 TRQ_DES_HillAssist_State; /*
+	Description: Shows the actual state of hill-assist algorithm; 0 = Initial state; 1 = Throttle priorization; 
+	2 = Accelerate without priorization; */
 
 __attribute__((section("EMERGE_DISP_RAM")))
-volatile UInt32 TRQ_DES_Hill_Assist_Disp_Counter
-/* Description: Shows the actual value of hill-assist counter to priorize throttle; */;
+MEDKit_Modul_Interfaces UInt16 TRQ_DES_HillAssist_ValCounter; /*
+	Description: Shows the actual value of hill-assist counter to priorize throttle */
 
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-/* Define variables to be calibrated with FRIWO EnableTool 					 */
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-/* Section EMERGE_NV_RAM_PAGE1:  Standart application data which will be stored in Flash when writing a snapshot*/
-/* All data types which can be chosen:  Int8, Int16, Int32, UInt8, UInt16, UInt32, Bool and Float32  */
 
-__attribute__((section("EMERGE_NV_RAM_PAGE1")))
-volatile Float32 TRQ_DES_C_Test_Torque_Request_tmpl = 0.F /* 
-	Description: Template parameter for test torque request via custom variable [%]; Limits: -100...100 */;
-   
-__attribute__((section("EMERGE_NV_RAM_PAGE1")))
-volatile UInt32 TRQ_DES_C_Test_Reverse_Gear_tmpl = 0 /* 
-	Description: Template parameter to set reverse gear via custom variable [%]; Limits: 0...1 */;
+/** 
+ * Define variables to be calibrated with FRIWO EnableTool Application.
+ * Section EMERGE_NV_RAM_PAGE1:  Standart application data which will be stored in flash when writing a snapshot.
+ * All data types which can be chosen:  Int8, Int16, Int32, UInt8, UInt16, UInt32, Bool and Float32.
+ */
+ __attribute__((section("EMERGE_NV_RAM_PAGE1")))
+MEDKit_Modul_Interfaces UInt8 TRQ_DES_C_ReverseGear_TestInput = 0u; /* 
+	Description: Test parameter for manual input of reverse gear signal [-]; Limits: 0...1 */
 	
 __attribute__((section("EMERGE_NV_RAM_PAGE1")))
-volatile UInt32 TRQ_DES_C_ThrottleBrakeComb_Cut_Time_tmpl = 10000 /* 
-	Description: Template parameter for time in milliseconds after which the accelerator-pedal signal will be 
-	cut-off on parallel use of throttle and brake [ms]; Limits: 0...4294967295 */;
+MEDKit_Modul_Interfaces UInt16 TRQ_DES_C_ThrottlePriorization_Time = 10000u; /* 
+	Description: Parameter for time during which throttle will be priorized when both brake and throttle
+	pedal are used in parallel [ms]; Limits: 0...65535 */
    
 __attribute__((section("EMERGE_NV_RAM_PAGE1")))
-volatile Float32 TRQ_DES_C_ThrottleBrakeComb_Max_Speed_tmpl = 2.F /* 
-	Description: Template parameter to define a rotor speed threshold at which the accelerator-pedal signal 
-	will always be cut-off by using the brake in parallel [1/s]; Limits: -1...2000 */;
+MEDKit_Modul_Interfaces Float32 TRQ_DES_C_ThrottlePriorization_MaxRotorSpeed = 2.F; /* 
+	Description: Parameter for maximum rotor speed to priorize throttle when both brake and throttle
+	pedal are used in parallel [1/s]; Limits: -1...2000 */
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-/* Define local functions													 */
+/* PRIVATE FUNCTION PROTOTYPES */
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-Float32 Saturation(Float32 lower_lim, Float32 upper_lim, Float32 sig_in){
-	Float32 sig_out = 0.F;
+/* Saturation function to saturate intermediate results and return parameters */
+Float32 sigSaturation(Float32, Float32, Float32);
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/* PRIVATE VARIABLES */
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/* PRIVATE FUNCTIONS */
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+/** 
+ * @brief Saturate input signal by the transfered lower and upper limits.
+ * @param sigLowerLimit: Lower limit of input signal used for saturation.
+ * @param sigUpperLimit: Upper limit of input signal used for saturation.
+ * @param sigInput: Input signal to be saturated.
+ * @return saturated value of input.
+ */
+Float32 sigSaturation(Float32 sigLowerLimit, Float32 sigUpperLimit, Float32 sigInput){
+	Float32 sigOutput = 0.F;
 	
-	if (sig_in > upper_lim) {
-		sig_out = upper_lim;
+	if (sigInput > sigUpperLimit) {
+		sigOutput = sigUpperLimit;
 	}
 	else {
-		if (sig_in < lower_lim) {
-			sig_out = lower_lim;
+		if (sigInput < sigLowerLimit) {
+			sigOutput = sigLowerLimit;
 		}
 		else {
-			sig_out = sig_in;
+			sigOutput = sigInput;
 		}
 	}
-	return sig_out;
+	return sigOutput;
 }	
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-/* Define TRQ_DES_custom module function									 */
+/* PUBLIC FUNCTIONS */
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
+/** 
+ * @brief Public function for desired torque calculation which can be customized.
+ *
+ * This function is the first module of torque calculation and strategy, which is called in basic firmware.
+ * In this example, the function realizes a hill-assist functionality which can be used in eScooter applications.
+ * Necessary input values such as analog input signals from throttle and brake pedal are received from trqdesApi through 
+ * Get functions. Additionaly, there are four output signals which have to be set since they are cross connected to
+ * other modules in basic firmware.
+ * @see trqdesApi.h file for more details about available Get and Set functions.
+ */
 void TRQ_DES_custom(void){
+	/* Define private variables to store return values of get-functions from trqdesApi. */
+	Float32 AnalogInput1_Signal;
+	Float32 AnalogInput2_Signal;
+	Float32 Motor_RotorSpeed;
+	Float32 TorqueControl_Status;
 
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-/* Define local variables 													 */
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-static int SR_ff_Q = 0;
-static int SR_ff_Qn = 1;
-static int SR_ff_S = 0;
-static int SR_ff_R = 0;
-
-struct state_machine {
-	int state[10];
-};
-
-static struct state_machine TRQ_DES_Hill_Assist;
-static UInt32 TRQ_DES_Hill_Assist_ctr = 0;
-
-/*----------------------------------------------------------------------------*\
-  User-defined functionalities
-\*----------------------------------------------------------------------------*/
-
-	/* Select input channel for throttle signal */
-   switch ((Int32) APP_Throttle_Signal_Channel) {
-      case 0: {
-         TRQ_DES_Throttle_Input = 0.F;
-         break;
-      }
-      case 1: {
-         TRQ_DES_Throttle_Input = AIN1_Throttle;
-         break;
-      }
-      case 2: {
-         TRQ_DES_Throttle_Input = AIN2_Throttle;
-         break;
-      }
-      case 3: {
-         TRQ_DES_Throttle_Input = PWMI_Throttle;
-         break;
-      }
-      case 4: {		  
-         /* Saturation */
-  	  	TRQ_DES_Throttle_Input = Saturation(0.F, 100.F, CAN_EXT_Torque_Request);
-         break;
-      }
-      default: {         
-         /* Saturation */
-	  	TRQ_DES_Throttle_Input = Saturation(0.F, 100.F, TRQ_DES_C_Test_Torque_Request_tmpl);
-         break;
-      }
-   }
-   	
-   /* Saturation */
-	TRQ_DES_Throttle_Input = Saturation(0.F, 100.F, TRQ_DES_Throttle_Input);
-   
-   /* Select input channel for brake signal */
-   switch ((Int32) APP_Brake_Signal_Channel) {
-      case 0: {
-         TRQ_DES_Brake_Input = 0.F;
-         break;
-      }
-      case 1: {
-         TRQ_DES_Brake_Input = AIN1_Throttle;
-         break;
-      }
-      case 2: {
-         TRQ_DES_Brake_Input = AIN2_Throttle;
-         break;
-      }
-      case 3: {
-         TRQ_DES_Brake_Input = PWMI_Throttle;
-         break;
-      }
-      case 4: {		  
-         /* Saturation */
-		TRQ_DES_Brake_Input = Saturation(-100.F, 0.F, CAN_EXT_Torque_Request);
-		TRQ_DES_Brake_Input = -TRQ_DES_Brake_Input;
-        break;
-      }
-      case 5: {         
-         /* Saturation */
-     	TRQ_DES_Brake_Input = Saturation(-100.F, 0.F, TRQ_DES_C_Test_Torque_Request_tmpl);
-		TRQ_DES_Brake_Input = -TRQ_DES_Brake_Input;
-		  
-         break;
-      }
-	  case 6: {
-		  TRQ_DES_Brake_Input = 100.F * DIN_DIN1_Signal;
-	  }
-	  default: {
-		  TRQ_DES_Brake_Input = 100.F * DIN_DIN2_Signal;
-	  }
-   }
-   
-   /* Saturation */
-	TRQ_DES_Brake_Input = Saturation(0.F, 100.F, TRQ_DES_Brake_Input);   
+	/* Define state and counter variables which show the current state of hill-assist state machine. */
+	static hillAssistState_TypeDef stateHillAssist = STATE_INITIAL;
+	static UInt16 ctrHillAssist = 0u;
 	
-	/* Select input channel for reverse gear */
-   switch ((Int32) APP_Reverse_Gear_Signal_Channel) {
-      case 0: {
-         TRQ_DES_Reverse_Gear = 0.F;
-         break;
-      }
-      case 1: {
-		  TRQ_DES_Reverse_Gear = 100.F * DIN_DIN1_Signal;
-         break;
-      }
-      case 2: {
-		  TRQ_DES_Reverse_Gear = 100.F * DIN_DIN2_Signal;
-         break;
-      }
-      case 3: {
-         TRQ_DES_Reverse_Gear = CAN_EXT_Reverse_Gear;
-         break;
-      }
-      default: {		  
-         TRQ_DES_Reverse_Gear = TRQ_DES_C_Test_Reverse_Gear_tmpl;
-      }
-	}
+	/* Get desired signals from trqdesApi and store them in locally defined variables. */
+	AnalogInput1_Signal = trqdesApi_Get_AIN1_Throttle();
+	AnalogInput2_Signal = trqdesApi_Get_AIN2_Throttle();
+	Motor_RotorSpeed = trqdesApi_Get_INFO_Rotor_Speed();
+	TorqueControl_Status = trqdesApi_Get_SM_OUT_SYS_Trq_Control();
 	
-	/* Saturation */
-	TRQ_DES_Reverse_Gear = Saturation(0.F, 1.F, TRQ_DES_Reverse_Gear);
+	/* Saturate the input signals to the desired range */
+	TRQ_DES_Throttle_Input = sigSaturation(0.F, 100.F, AnalogInput1_Signal);
+   	TRQ_DES_Brake_Input = sigSaturation(0.F, 100.F, AnalogInput2_Signal);
+	TRQ_DES_ReverseGear_Input = sigSaturation(0.F, 1.F, (Float32)TRQ_DES_C_ReverseGear_TestInput);
+	TorqueControl_Status = sigSaturation(0.F, 1.F, TorqueControl_Status);
 	
-	/* Cross connections of "raw" input values for state management and system startup */
-	TRQ_DES_Driver_Throttle = TRQ_DES_Throttle_Input;
-	TRQ_DES_Driver_Brake = TRQ_DES_Brake_Input;
-	TRQ_DES_Driver_Reverse_Gear = TRQ_DES_Reverse_Gear;
-   
-   /* Invert brake signal for desired torque calculation */
-	TRQ_DES_Brake_Input = -TRQ_DES_Brake_Input;
-	
-	/* Check if motor speed is below speed threshold and throttle input is zero to activate hill assist */
-	if(abs(MO_Rotor_Speed) > TRQ_DES_C_ThrottleBrakeComb_Max_Speed_tmpl){
-		SR_ff_S = 1;
-	}
-	else{
-		SR_ff_S = 0;
-	}
-	
-	if(TRQ_DES_Throttle_Input <= 0 && !SR_ff_S){
-		SR_ff_R = 1;
-	}
-	else{
-		SR_ff_R = 0;
-	}
-	
-	/* S-R flip flop to activate hill assist */
-	if (SR_ff_S && (!(SR_ff_R))) {
-      SR_ff_Qn = 0;
-      SR_ff_Q = 1;
-	}
-	else {
-      if ((!(SR_ff_S)) && SR_ff_R) {
-         SR_ff_Qn = 1;
-         SR_ff_Q = 0;
-      }
-      else {
-         if (SR_ff_S && SR_ff_R) {
-            SR_ff_Qn = 1;
-            SR_ff_Q = 0;
-         }
-         else {
-            SR_ff_Q = !(SR_ff_Qn);
-         }
-      }
-	}
-
-	if(SR_ff_Qn){
-			/* Hill Assist */
-			if (TRQ_DES_Hill_Assist.state[0]) {
-				TRQ_DES_Hill_Assist_Disp_State = 1;
-			  if (TRQ_DES_Throttle_Input <= 0.F) {
-				 TRQ_DES_Hill_Assist.state[0] = 0;
-				 TRQ_DES_Hill_Assist.state[1] = 1;
-				 TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input + TRQ_DES_Brake_Input;
-			  }
-			  else {
-				 TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input + TRQ_DES_Brake_Input;
-			  }
+	/* Make sure that system is ready and torque control is active by checking the flag Status_TorqueControl */
+	if(TorqueControl_Status == 1.F) {
+		/* Implement the state-machine for the hill-assist using the three states STATE_INITIAL, STATE_THROTTLE_PRIO and STATE_NORMAL_ACCELERATION */
+		switch(stateHillAssist) {
+			case STATE_INITIAL: {
+				/* When accelerating while brake is pulled and rotor speed is below threshold, reload hill-assist counter and jump to STATE_THROTTLE_PRIO */
+				if (TRQ_DES_Throttle_Input > 0.F && TRQ_DES_Brake_Input > 0.F && abs(Motor_RotorSpeed) <= TRQ_DES_C_ThrottlePriorization_MaxRotorSpeed) {
+					TRQ_DES_TorqueRequest = TRQ_DES_Throttle_Input;
+					stateHillAssist = STATE_THROTTLE_PRIO;
+					TRQ_DES_HillAssist_State = (UInt8)stateHillAssist;
+					ctrHillAssist = TRQ_DES_C_ThrottlePriorization_Time;
+				}
+				/* When accelerating without holding brake there is no priorization of throttle input and jump to STATE_NORMAL_ACCELERATION */
+				else if (TRQ_DES_Throttle_Input > 0.F && TRQ_DES_Brake_Input <= 0.F) {
+					TRQ_DES_TorqueRequest = TRQ_DES_Throttle_Input - TRQ_DES_Brake_Input;
+					stateHillAssist = STATE_NORMAL_ACCELERATION;
+					TRQ_DES_HillAssist_State = (UInt8)stateHillAssist;
+				}
+				/* When there is no acceleration stay in STATE_INITIAL */
+				else {
+					TRQ_DES_TorqueRequest = TRQ_DES_Throttle_Input - TRQ_DES_Brake_Input;
+					TRQ_DES_HillAssist_State = (UInt8)stateHillAssist;
+				}
+				break;
 			}
-			else {
-			  if (TRQ_DES_Hill_Assist.state[1]) {
-				 /* Prepare for Throttle-Priorization */
-				 TRQ_DES_Hill_Assist_Disp_State = 2;
-				 if (TRQ_DES_Throttle_Input > 0.F) {
-					TRQ_DES_Hill_Assist.state[1] = 0;
-					TRQ_DES_Hill_Assist_ctr = 0;
-					TRQ_DES_Hill_Assist.state[2] = 1;
-					TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input;
-				 }
-				 else {
-					TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input + TRQ_DES_Brake_Input;
-				 }
-			  }
-			  else {
-				 if (TRQ_DES_Hill_Assist.state[2]) {
-					/* Accelerate with Brake on */
-					TRQ_DES_Hill_Assist_Disp_State = 3;
-					TRQ_DES_Hill_Assist_ctr++;
-					if (TRQ_DES_Brake_Input == 0.F) {
-					   TRQ_DES_Hill_Assist.state[2] = 0;
-  					   TRQ_DES_Hill_Assist_ctr = 0;
-					   TRQ_DES_Hill_Assist.state[3] = 1;
-					   TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input + TRQ_DES_Brake_Input;
-					}
-					else {
-					   if (TRQ_DES_Hill_Assist_ctr >= TRQ_DES_C_ThrottleBrakeComb_Cut_Time_tmpl) {
-							TRQ_DES_Hill_Assist.state[2] = 0;
-							TRQ_DES_Hill_Assist_ctr = 0;
-							TRQ_DES_Hill_Assist.state[3] = 1;
-							TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input + TRQ_DES_Brake_Input;
-					   }
-					   else {
-						  TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input;
-					   }
-					}
-					TRQ_DES_Hill_Assist_Disp_Counter = TRQ_DES_Hill_Assist_ctr;
-				 }
-				 else {
-					if (TRQ_DES_Hill_Assist.state[3]) {
-						/* Accelerate with Brake released */
-						TRQ_DES_Hill_Assist_Disp_State = 4;
-					   if ((TRQ_DES_Throttle_Input <= 0.F) && (TRQ_DES_Brake_Input <= 0.F)) {
-							TRQ_DES_Hill_Assist.state[3] = 0;
-							TRQ_DES_Hill_Assist.state[0] = 1;
-							TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input + TRQ_DES_Brake_Input;
-					   }
-					   else {
-							TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input + TRQ_DES_Brake_Input;
-					   }
-					}
-					else {
-						/* Entry state */
-						TRQ_DES_Hill_Assist_Disp_State = 1;
-						TRQ_DES_Hill_Assist.state[0] = 1;
-						TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input + TRQ_DES_Brake_Input;
-					}
-				 }
-			  }
+			case STATE_THROTTLE_PRIO: {
+				/* If still accelerating when counter reaches zero jump to STATE_NORMAL_ACCELERATION  */
+				ctrHillAssist--;
+				if (TRQ_DES_Throttle_Input > 0.F && ctrHillAssist == 0u) {
+					TRQ_DES_TorqueRequest = TRQ_DES_Throttle_Input - TRQ_DES_Brake_Input;
+					stateHillAssist = STATE_NORMAL_ACCELERATION;
+					TRQ_DES_HillAssist_State = (UInt8)stateHillAssist;
+				}
+				/* If throttle is released while counter still running reset counter and jump back to STATE_INITIAL */
+				else if (TRQ_DES_Throttle_Input <= 0.F && ctrHillAssist != 0u) {
+					ctrHillAssist = 0u;
+					TRQ_DES_TorqueRequest = TRQ_DES_Throttle_Input - TRQ_DES_Brake_Input;
+					stateHillAssist = STATE_INITIAL;
+					TRQ_DES_HillAssist_State = (UInt8)stateHillAssist;
+				}
+				/* As long as counter has not reached zero priorize throttle over brake input */
+				else {
+					TRQ_DES_TorqueRequest = TRQ_DES_Throttle_Input;
+				}
+				break;
 			}
-	}
-	else{
-		TRQ_DES_Hill_Assist_ctr = 0;
-		TRQ_DES_Hill_Assist_Disp_State = 0;
-		TRQ_DES_Trq_Req_Rel = TRQ_DES_Throttle_Input + TRQ_DES_Brake_Input;
-	}
-	
-	/* Saturation */
-	if (TRQ_DES_Trq_Req_Rel > 100.F) {
-		TRQ_DES_Flag_Upper_Lim = 1;
-		TRQ_DES_Trq_Req_Rel = 100.F;
-	}
-	else {
-		if (TRQ_DES_Trq_Req_Rel < -100.F) {
-		TRQ_DES_Flag_Lower_Lim = 1;
-		TRQ_DES_Trq_Req_Rel = -100.F;
+			case STATE_NORMAL_ACCELERATION: {
+				/* If both pedals throttle and brake are released and rotor speed is below threshold, go back to STATE_INITIAL to reset hill-assist state machine */
+				if (TRQ_DES_Throttle_Input <= 0.F && TRQ_DES_Brake_Input <= 0.F && abs(Motor_RotorSpeed) <= TRQ_DES_C_ThrottlePriorization_MaxRotorSpeed) {
+					TRQ_DES_TorqueRequest = TRQ_DES_Throttle_Input - TRQ_DES_Brake_Input;
+					stateHillAssist = STATE_INITIAL;
+					TRQ_DES_HillAssist_State = (UInt8)stateHillAssist;
+				}
+				/* Normal acceleration without priorization after hill-assist counter has reached zero */
+				else {
+					TRQ_DES_TorqueRequest = TRQ_DES_Throttle_Input - TRQ_DES_Brake_Input;
+				}
+				break;
+			}
 		}
-	}	
+	}
+	else {
+		stateHillAssist = STATE_INITIAL;
+		ctrHillAssist = 1u;
+		TRQ_DES_TorqueRequest = 0.F;
+	}
+	
+	/* Show current state and counter value of hill-assist state machine */
+	TRQ_DES_HillAssist_ValCounter = ctrHillAssist;
+	TRQ_DES_HillAssist_State = (UInt8)stateHillAssist;
+
+	/* Saturation of relative torque request from -100...100% with limit indication */
+	if (TRQ_DES_TorqueRequest > 100.F) {
+		TRQ_DES_TorqueRequest_UpperLim = 1u;
+		TRQ_DES_TorqueRequest = 100.F;
+	}
+	else {
+		if (TRQ_DES_TorqueRequest < -100.F) {
+		TRQ_DES_TorqueRequest_LowerLim = 1u;
+		TRQ_DES_TorqueRequest = -100.F;
+		}
+	}
+	
+	/**
+	 * Return calculated set values as module outports to trqdesApi. 
+	 * Besides desired torque TRQ_DES_TorqueRequest the following cross connections for state management and system startup must be considered and set as well:
+	 * TRQ_DES_Driver_Throttle, TRQ_DES_Driver_Brake and TRQ_DES_Reverse_Gear
+	*/
+	trqdesApi_Set_TRQ_DES_Driver_Throttle(TRQ_DES_Throttle_Input);
+	trqdesApi_Set_TRQ_DES_Driver_Brake(TRQ_DES_Brake_Input);
+	trqdesApi_Set_TRQ_DES_Driver_Reverse_Gear(TRQ_DES_ReverseGear_Input);
+	trqdesApi_Set_TRQ_DES_Trq_Req_Rel(TRQ_DES_TorqueRequest);
+	
 }
-#endif/*TRQ_DES_CUSTOM_C */
-/*----------------------------------------------------------------------------*\
-  END OF FILE
-\*----------------------------------------------------------------------------*/
+
+/** @} */
+
+#endif /* TRQ_DES_CUSTOM_C_ */

@@ -25,8 +25,8 @@
       <ddProperty Name="Unit">s</ddProperty>
    </ddObj>
 </ddObj>
-<ddObj Name="TRQ_DES_Reverse_Gear" Kind="Variable">
-   <ddProperty Name="Description">Shows if reverse gear is selected;  0 = forward gear selected; 1 = reverse gear selected</ddProperty>
+<ddObj Name="TRQ_DES_ReverseGear_Input" Kind="Variable">
+   <ddProperty Name="Description">Shows if reverse gear is selected after selection of input channel;  0 = forward gear selected; 1 = reverse gear selected</ddProperty>
    <ddProperty Name="Type">Float32</ddProperty>
    <ddProperty Name="Scaling">./LocalScaling</ddProperty>
    <ddProperty Name="Value"></ddProperty>
@@ -38,60 +38,8 @@
       <ddProperty Name="Unit">s</ddProperty>
    </ddObj>
 </ddObj>
-<ddObj Name="TRQ_DES_Flag_Upper_Lim" Kind="Variable">
-   <ddProperty Name="Description">Shows if desired torque has reached the upper bound of allowed operational range</ddProperty>
-   <ddProperty Name="Type">Float32</ddProperty>
-   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
-   <ddProperty Name="Value"></ddProperty>
-   <ddProperty Name="Min">0</ddProperty>
-   <ddProperty Name="Max">1</ddProperty>
-   <ddProperty Name="Address"></ddProperty>
-   <ddObj Name="LocalScaling" Kind="Scaling">
-      <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit">s</ddProperty>
-   </ddObj>
-</ddObj>
-<ddObj Name="TRQ_DES_Flag_Lower_Lim" Kind="Variable">
-   <ddProperty Name="Description">Shows if desired torque has reached the lower bound of allowed operational range</ddProperty>
-   <ddProperty Name="Type">Float32</ddProperty>
-   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
-   <ddProperty Name="Value"></ddProperty>
-   <ddProperty Name="Min">0</ddProperty>
-   <ddProperty Name="Max">1</ddProperty>
-   <ddProperty Name="Address"></ddProperty>
-   <ddObj Name="LocalScaling" Kind="Scaling">
-      <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit">s</ddProperty>
-   </ddObj>
-</ddObj>
-<ddObj Name="TRQ_DES_Hill_Assist_Disp_State" Kind="Variable">
-   <ddProperty Name="Description">Shows the actual state of hill-assist algorithm; 0 = Hill-Assist not active; 1 = Entry state; 2 = Prepare for Throttle-Priorization; 3 = Accelerate with Brake on; 4 = Accelerate with Brake released </ddProperty>
-   <ddProperty Name="Type">UInt32</ddProperty>
-   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
-   <ddProperty Name="Value"></ddProperty>
-   <ddProperty Name="Min">0</ddProperty>
-   <ddProperty Name="Max">4</ddProperty>
-   <ddProperty Name="Address"></ddProperty>
-   <ddObj Name="LocalScaling" Kind="Scaling">
-      <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit">s</ddProperty>
-   </ddObj>
-</ddObj>
-<ddObj Name="TRQ_DES_Hill_Assist_Disp_Counter" Kind="Variable">
-   <ddProperty Name="Description">Shows the actual value of hill-assist counter to priorize throttle</ddProperty>
-   <ddProperty Name="Type">UInt32</ddProperty>
-   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
-   <ddProperty Name="Value"></ddProperty>
-   <ddProperty Name="Min">0</ddProperty>
-   <ddProperty Name="Max">4294967295</ddProperty>
-   <ddProperty Name="Address"></ddProperty>
-   <ddObj Name="LocalScaling" Kind="Scaling">
-      <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit">s</ddProperty>
-   </ddObj>
-</ddObj>
-<ddObj Name="TRQ_DES_C_Test_Torque_Request_tmpl" Kind="Variable">
-   <ddProperty Name="Description">Template parameter for test torque request via custom variable [%]; Limits: -100...100</ddProperty>
+<ddObj Name="TRQ_DES_TorqueRequest" Kind="Variable">
+   <ddProperty Name="Description">Shows the desired torque request returned to trqdesApi [%]; Limits: -100...100</ddProperty>
    <ddProperty Name="Type">Float32</ddProperty>
    <ddProperty Name="Scaling">./LocalScaling</ddProperty>s
    <ddProperty Name="Min">-100</ddProperty>
@@ -99,35 +47,87 @@
    <ddProperty Name="Address"></ddProperty>
    <ddObj Name="LocalScaling" Kind="Scaling">
       <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit">s</ddProperty>
+      <ddProperty Name="Unit">%</ddProperty>
    </ddObj>
 </ddObj>
-<ddObj Name="TRQ_DES_C_Test_Reverse_Gear_tmpl" Kind="Variable">
-   <ddProperty Name="Description">Template parameter to set reverse gear via custom variable [%]; Limits: 0...1</ddProperty>
-   <ddProperty Name="Type">UInt32</ddProperty>
+<ddObj Name="TRQ_DES_TorqueRequest_UpperLim" Kind="Variable">
+   <ddProperty Name="Description">Shows if desired torque has reached the upper bound of allowed operational range</ddProperty>
+   <ddProperty Name="Type">UInt8</ddProperty>
+   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
+   <ddProperty Name="Value"></ddProperty>
+   <ddProperty Name="Min">0</ddProperty>
+   <ddProperty Name="Max">1</ddProperty>
+   <ddProperty Name="Address"></ddProperty>
+   <ddObj Name="LocalScaling" Kind="Scaling">
+      <ddProperty Name="LSB">1</ddProperty>
+      <ddProperty Name="Unit"></ddProperty>
+   </ddObj>
+</ddObj>
+<ddObj Name="TRQ_DES_TorqueRequest_LowerLim" Kind="Variable">
+   <ddProperty Name="Description">Shows if desired torque has reached the lower bound of allowed operational range</ddProperty>
+   <ddProperty Name="Type">UInt8</ddProperty>
+   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
+   <ddProperty Name="Value"></ddProperty>
+   <ddProperty Name="Min">0</ddProperty>
+   <ddProperty Name="Max">1</ddProperty>
+   <ddProperty Name="Address"></ddProperty>
+   <ddObj Name="LocalScaling" Kind="Scaling">
+      <ddProperty Name="LSB">1</ddProperty>
+      <ddProperty Name="Unit"></ddProperty>
+   </ddObj>
+</ddObj>
+<ddObj Name="TRQ_DES_HillAssist_State" Kind="Variable">
+   <ddProperty Name="Description">Shows the actual state of hill-assist algorithm; 0 = Initial state; 1 = Throttle priorization; 2 = Accelerate without priorization; </ddProperty>
+   <ddProperty Name="Type">UInt8</ddProperty>
+   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
+   <ddProperty Name="Value"></ddProperty>
+   <ddProperty Name="Min">0</ddProperty>
+   <ddProperty Name="Max">4</ddProperty>
+   <ddProperty Name="Address"></ddProperty>
+   <ddObj Name="LocalScaling" Kind="Scaling">
+      <ddProperty Name="LSB">1</ddProperty>
+      <ddProperty Name="Unit"></ddProperty>
+   </ddObj>
+</ddObj>
+<ddObj Name="TRQ_DES_HillAssist_ValCounter" Kind="Variable">
+   <ddProperty Name="Description">Shows the actual value of hill-assist counter to priorize throttle</ddProperty>
+   <ddProperty Name="Type">UInt16</ddProperty>
+   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
+   <ddProperty Name="Value"></ddProperty>
+   <ddProperty Name="Min">0</ddProperty>
+   <ddProperty Name="Max">65535</ddProperty>
+   <ddProperty Name="Address"></ddProperty>
+   <ddObj Name="LocalScaling" Kind="Scaling">
+      <ddProperty Name="LSB">1</ddProperty>
+      <ddProperty Name="Unit"></ddProperty>
+   </ddObj>
+</ddObj>
+<ddObj Name="TRQ_DES_C_ReverseGear_TestInput" Kind="Variable">
+   <ddProperty Name="Description">Test parameter for manual input of reverse gear signal [-]; Limits: 0...1</ddProperty>
+   <ddProperty Name="Type">UInt8</ddProperty>
    <ddProperty Name="Scaling">./LocalScaling</ddProperty>s
    <ddProperty Name="Min">0</ddProperty>
    <ddProperty Name="Max">1</ddProperty>
    <ddProperty Name="Address"></ddProperty>
    <ddObj Name="LocalScaling" Kind="Scaling">
       <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit">s</ddProperty>
+      <ddProperty Name="Unit"></ddProperty>
    </ddObj>
 </ddObj>
-<ddObj Name="TRQ_DES_C_ThrottleBrakeComb_Cut_Time_tmpl" Kind="Variable">
-   <ddProperty Name="Description">Template parameter for time in milliseconds after which the accelerator-pedal signal will be cut-off on parallel use of throttle and brake [ms]; Limits: 0...4294967295</ddProperty>
-   <ddProperty Name="Type">UInt32</ddProperty>
+<ddObj Name="TRQ_DES_C_ThrottlePriorization_Time" Kind="Variable">
+   <ddProperty Name="Description">Parameter for time during which throttle will be priorized when both brake and throttle pedal are used in parallel [ms]; Limits: 0...65535</ddProperty>
+   <ddProperty Name="Type">UInt16</ddProperty>
    <ddProperty Name="Scaling">./LocalScaling</ddProperty>
    <ddProperty Name="Min">0</ddProperty>
-   <ddProperty Name="Max">4294967295</ddProperty>
+   <ddProperty Name="Max">65535</ddProperty>
    <ddProperty Name="Address"></ddProperty>
    <ddObj Name="LocalScaling" Kind="Scaling">
       <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit">s</ddProperty>
+      <ddProperty Name="Unit">ms</ddProperty>
    </ddObj>
 </ddObj>
-<ddObj Name="TRQ_DES_C_ThrottleBrakeComb_Max_Speed_tmpl" Kind="Variable">
-   <ddProperty Name="Description">Template parameter to define a rotor speed threshold at which the accelerator-pedal signal will always be cut-off by using the brake in parallel [1/s]; Limits: -1...2000</ddProperty>
+<ddObj Name="TRQ_DES_C_ThrottlePriorization_MaxRotorSpeed" Kind="Variable">
+   <ddProperty Name="Description">Parameter for maximum rotor speed to priorize throttle when both brake and throttle pedal are used in parallel [1/s]; Limits: -1...2000</ddProperty>
    <ddProperty Name="Type">Float32</ddProperty>
    <ddProperty Name="Scaling">./LocalScaling</ddProperty>
    <ddProperty Name="Min">-1</ddProperty>
@@ -135,7 +135,7 @@
    <ddProperty Name="Address"></ddProperty>
    <ddObj Name="LocalScaling" Kind="Scaling">
       <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit">s</ddProperty>
+      <ddProperty Name="Unit">1/s</ddProperty>
    </ddObj>
 </ddObj>
 </ddObj>
