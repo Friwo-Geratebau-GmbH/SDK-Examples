@@ -50,32 +50,6 @@
       <ddProperty Name="Unit">%</ddProperty>
    </ddObj>
 </ddObj>
-<ddObj Name="TRQ_DES_TorqueRequest_UpperLim" Kind="Variable">
-   <ddProperty Name="Description">Shows if desired torque has reached the upper bound of allowed operational range</ddProperty>
-   <ddProperty Name="Type">UInt8</ddProperty>
-   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
-   <ddProperty Name="Value"></ddProperty>
-   <ddProperty Name="Min">0</ddProperty>
-   <ddProperty Name="Max">1</ddProperty>
-   <ddProperty Name="Address"></ddProperty>
-   <ddObj Name="LocalScaling" Kind="Scaling">
-      <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit"></ddProperty>
-   </ddObj>
-</ddObj>
-<ddObj Name="TRQ_DES_TorqueRequest_LowerLim" Kind="Variable">
-   <ddProperty Name="Description">Shows if desired torque has reached the lower bound of allowed operational range</ddProperty>
-   <ddProperty Name="Type">UInt8</ddProperty>
-   <ddProperty Name="Scaling">./LocalScaling</ddProperty>
-   <ddProperty Name="Value"></ddProperty>
-   <ddProperty Name="Min">0</ddProperty>
-   <ddProperty Name="Max">1</ddProperty>
-   <ddProperty Name="Address"></ddProperty>
-   <ddObj Name="LocalScaling" Kind="Scaling">
-      <ddProperty Name="LSB">1</ddProperty>
-      <ddProperty Name="Unit"></ddProperty>
-   </ddObj>
-</ddObj>
 <ddObj Name="TRQ_DES_HillAssist_State" Kind="Variable">
    <ddProperty Name="Description">Shows the actual state of hill-assist algorithm; 0 = Initial state; 1 = Throttle priorization; 2 = Accelerate without priorization; </ddProperty>
    <ddProperty Name="Type">UInt8</ddProperty>
