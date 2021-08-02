@@ -1,0 +1,54 @@
+<ddObj Name="Variables" Kind="VariableGroup">
+	<ddObj Name="CAN_C_Switch_KilometerToMiles" Kind="Variable">
+		<ddProperty Name="Description">Select between Kilometer and Miles for CAN output;StateList;0=Kilometer;1=Miles</ddProperty>
+		<ddProperty Name="Type">UInt32</ddProperty>
+		<ddProperty Name="Scaling">./LocalScaling</ddProperty>
+		<ddProperty Name="Value">0</ddProperty>
+		<ddProperty Name="Min">0</ddProperty>
+		<ddProperty Name="Max">1</ddProperty>
+		<ddProperty Name="Address"></ddProperty>
+		<ddObj Name="LocalScaling" Kind="Scaling">
+		  <ddProperty Name="LSB">1</ddProperty>
+		  <ddProperty Name="Unit">s</ddProperty>
+		</ddObj>
+	</ddObj>
+	<ddObj Name="CAN_C_SwitchDataInfo_ID_207" Kind="Variable">
+		<ddProperty Name="Description">CAN-bus Display Data[-];StateList;0 = Boost; 1 = SetpointTorque; 2 = MaxTorque; 3 = MappingTorque;</ddProperty>
+		<ddProperty Name="Type">UInt32</ddProperty>
+		<ddProperty Name="Scaling">./LocalScaling</ddProperty>
+		<ddProperty Name="Value">0</ddProperty>
+		<ddProperty Name="Min">0</ddProperty>
+		<ddProperty Name="Max">3</ddProperty>
+		<ddProperty Name="Address"></ddProperty>
+		<ddObj Name="LocalScaling" Kind="Scaling">
+		  <ddProperty Name="LSB">1</ddProperty>
+		  <ddProperty Name="Unit">s</ddProperty>
+		</ddObj>
+	</ddObj>
+	<ddObj Name="CAN_C_SwitchDataInfo_ID_306" Kind="Variable">
+		<ddProperty Name="Description">CAN-bus Display Data[-];StateList;0 = BateryVoltage; 1 = RemainigDistance;</ddProperty>
+		<ddProperty Name="Type">UInt32</ddProperty>
+		<ddProperty Name="Scaling">./LocalScaling</ddProperty>
+		<ddProperty Name="Value">0</ddProperty>
+		<ddProperty Name="Min">0</ddProperty>
+		<ddProperty Name="Max">1</ddProperty>
+		<ddProperty Name="Address"></ddProperty>
+		<ddObj Name="LocalScaling" Kind="Scaling">
+		  <ddProperty Name="LSB">1</ddProperty>
+		  <ddProperty Name="Unit">s</ddProperty>
+		</ddObj>
+	</ddObj>
+	<ddObj Name="CAN_M_ReceivedTestData" Kind="Variable">
+		<ddProperty Name="Description">CAN-bus Test data, received value via CAN in demo code</ddProperty>
+		<ddProperty Name="Type">UInt32</ddProperty>
+		<ddProperty Name="Scaling">./LocalScaling</ddProperty>
+		<ddProperty Name="Value">0</ddProperty>
+		<ddProperty Name="Min">0</ddProperty>
+		<ddProperty Name="Max">4294967295</ddProperty>
+		<ddProperty Name="Address"></ddProperty>
+		<ddObj Name="LocalScaling" Kind="Scaling">
+		  <ddProperty Name="LSB">1</ddProperty>
+		  <ddProperty Name="Unit">s</ddProperty>
+		</ddObj>
+	</ddObj>
+</ddObj>
